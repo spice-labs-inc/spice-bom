@@ -57,7 +57,7 @@
         <ginger-j.version>0.4.0</ginger-j.version>
         <goatrodeo.version>0.16.1</goatrodeo.version>
         <saffron.version>0.2.3</saffron.version>
-        <spice-plugin-api.version>1.0.0</spice-plugin-api.version>
+        <spice-plugin-api.version>1.0.2</spice-plugin-api.version>
 
         <!-- Scala modules (Scala 3 `_3` artifacts) -->
         <scala-xml.version>2.3.0</scala-xml.version>
