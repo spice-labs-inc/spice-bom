@@ -1,0 +1,128 @@
+name: Publish the Spice Labs BOM
+
+# The BOM (io.spicelabs:spice-bom) is a standalone artifact that versions and
+# releases independently of every consumer. It ships on its own tag,
+# `v<x.y.z>`, to GitHub Packages and Maven Central. SNAPSHOT versions are
+# published to GitHub Packages on every push to main by snapshot.yml.
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  publish_bom:
+    name: Publish spice-bom to GitHub Packages and Maven Central
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Validate and extract version from tag
+        id: validate
+        run: |
+          if [[ "${GITHUB_REF}" =~ ^refs/tags/v(.+)$ ]]; then
+            VERSION="${BASH_REMATCH[1]}"
+            echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          else
+            echo "Tag does not match BOM version pattern v*" >&2
+            exit 1
+          fi
+
+      - name: Set up JDK 21 and GitHub Maven auth
+        # setup-java imports the GPG key (gpg-private-key/gpg-passphrase) and
+        # sets up Maven. The `github` server auth is written explicitly in the
+        # next step (settings.xml heredoc) using GITHUB_ACTOR/GITHUB_TOKEN env
+        # vars, so server-username/server-password are left at their defaults.
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "21"
+          cache: "maven"
+          server-id: github
+          token: ${{ secrets.MAVEN_CENTRAL_TOKEN }}
+          gpg-private-key: ${{ secrets.MAVEN_CENTRAL_GPG_PRIVATE_KEY }}
+          gpg-passphrase: ${{ secrets.MAVEN_CENTRAL_GPG_PASSPHRASE }}
+
+      - name: Write settings.xml for GitHub + Maven Central
+        # The `github` server publishes this repo's own package (github.token /
+        # github.actor suffice). The `github-spice-labs-plugin-api` server reads a
+        # *cross-repo* package, so it needs a PAT (GH_USERNAME_SG / GH_TOKEN) with
+        # read:packages — the GITHUB_TOKEN can't reach another repo's packages
+        # unless that repo grants it "Manage Actions Access".
+        run: |
+          mkdir -p ~/.m2
+          cat <<EOF > ~/.m2/settings.xml
+          <settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
+                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                    xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0 https://maven.apache.org/xsd/settings-1.0.0.xsd">
+
+            <servers>
+              <server>
+                <id>github</id>
+                <username>\${env.GITHUB_ACTOR}</username>
+                <password>\${env.GITHUB_TOKEN}</password>
+              </server>
+              <server>
+                <id>github-spice-labs-plugin-api</id>
+                <username>${{ secrets.GH_USERNAME_SG }}</username>
+                <password>${{ secrets.GH_TOKEN }}</password>
+              </server>
+              <server>
+                <id>central</id>
+                <username>${{ secrets.MAVEN_CENTRAL_USERNAME }}</username>
+                <password>${{ secrets.MAVEN_CENTRAL_PASSWORD }}</password>
+              </server>
+            </servers>
+
+            <profiles>
+              <profile>
+                <id>repos</id>
+                <repositories>
+                  <repository>
+                    <id>github-spice-labs-plugin-api</id>
+                    <url>https://maven.pkg.github.com/spice-labs-inc/spice-plugin-api</url>
+                  </repository>
+                </repositories>
+              </profile>
+            </profiles>
+
+            <activeProfiles>
+              <activeProfile>repos</activeProfile>
+            </activeProfiles>
+
+          </settings>
+          EOF
+
+      - name: Resolve, verify and pin the released plugin-api version
+        # A released BOM must not depend on a SNAPSHOT (Maven Central rejects it).
+        # Take the BOM's plugin-api version, strip -SNAPSHOT, verify that plugin-api
+        # is published, and pin the BOM's dependency to it. Release plugin-api first:
+        # tag v<x.y.z> in spice-labs-inc/spice-plugin-api.
+        run: |
+          PLUGIN_API_SNAP="$(mvn --batch-mode help:evaluate -Dexpression=spice-plugin-api.version -q -DforceStdout)"
+          PLUGIN_API_VERSION="${PLUGIN_API_SNAP%-SNAPSHOT}"
+          echo "PLUGIN_API_VERSION=${PLUGIN_API_VERSION}" >> "$GITHUB_ENV"
+          mvn --batch-mode dependency:get "-Dartifact=io.spicelabs:spice-plugin-api:${PLUGIN_API_VERSION}:pom"
+
+      - name: Set BOM version from tag and pin plugin-api to its release
+        run: |
+          mvn --batch-mode versions:set -DnewVersion=${{ steps.validate.outputs.VERSION }} -DgenerateBackupPoms=false
+          mvn --batch-mode versions:set-property -Dproperty=spice-plugin-api.version "-DnewVersion=${PLUGIN_API_VERSION}" -DgenerateBackupPoms=false
+
+      - name: Publish BOM to GitHub Packages
+        run: mvn --batch-mode clean deploy -P github
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GPG_PASSPHRASE: ${{ secrets.MAVEN_CENTRAL_GPG_PASSPHRASE }}
+
+      - name: Publish BOM to Maven Central
+        if: ${{ !endsWith(steps.validate.outputs.VERSION, '-SNAPSHOT') }}
+        run: mvn --batch-mode clean deploy -P maven-central
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GPG_PASSPHRASE: ${{ secrets.MAVEN_CENTRAL_GPG_PASSPHRASE }}

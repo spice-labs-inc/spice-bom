@@ -1,0 +1,36 @@
+name: Build
+
+# CI gate for spice-bom. Confirms Maven can parse the BOM POM, resolve its
+# spice-plugin-api dependency, and validate the managed coordinates, on every
+# pull request and push to main. spice-plugin-api resolves from GitHub Packages
+# (spice-labs-inc/spice-plugin-api), which needs auth even for public reads.
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    name: Validate BOM
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up JDK 21 and GitHub Maven auth
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "21"
+          cache: "maven"
+          server-id: github-spice-labs-plugin-api
+          server-username: GH_USERNAME_SG
+          server-password: GH_TOKEN
+
+      - name: Validate POM
+        run: mvn --batch-mode validate
+        env:
+          GH_USERNAME_SG: ${{ secrets.GH_USERNAME_SG }}
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
