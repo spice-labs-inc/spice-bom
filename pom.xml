@@ -139,8 +139,11 @@
                 <artifactId>ancho</artifactId>
                 <version>${ancho.version}</version>
             </dependency>
-            <!-- spice-plugin-api is declared as a normal dependency in <dependencies>
-                 below, not managed here, so consumers inherit it transitively. -->
+            <dependency>
+                <groupId>io.spicelabs</groupId>
+                <artifactId>spice-plugin-api</artifactId>
+                <version>${spice-plugin-api.version}</version>
+            </dependency>
             <dependency>
                 <groupId>io.spicelabs</groupId>
                 <artifactId>cilantro_3</artifactId>
@@ -515,18 +518,6 @@
             </dependency>
         </dependencies>
     </dependencyManagement>
-
-    <!-- The BOM depends on spice-plugin-api directly so consumers that import it
-         inherit plugin-api transitively, rather than each consumer re-declaring the
-         version. plugin-api is published from spice-labs-inc/spice-plugin-api; the
-         version property lets the release workflow pin it away from -SNAPSHOT. -->
-    <dependencies>
-        <dependency>
-            <groupId>io.spicelabs</groupId>
-            <artifactId>spice-plugin-api</artifactId>
-            <version>${spice-plugin-api.version}</version>
-        </dependency>
-    </dependencies>
 
     <!-- spice-plugin-api is published to GitHub Packages (spice-labs-inc/spice-plugin-api),
          which requires auth even for public reads. The `repos` profile adds it so local
