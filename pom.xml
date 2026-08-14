@@ -50,12 +50,12 @@
 
         <!-- Spice Labs libraries -->
         <ancho.version>0.0.5</ancho.version>
-        <annatto.version>0.1.0</annatto.version>
+        <annatto.version>0.2.0</annatto.version>
         <baharat.version>0.1.1</baharat.version>
         <cilantro.version>0.1.17</cilantro.version>
         <coordinates.version>1.1.0</coordinates.version>
         <ginger-j.version>0.4.0</ginger-j.version>
-        <goatrodeo.version>0.17.4</goatrodeo.version>
+        <goatrodeo.version>0.17.6</goatrodeo.version>
         <saffron.version>0.2.3</saffron.version>
         <spice-plugin-api.version>1.0.2</spice-plugin-api.version>
 
