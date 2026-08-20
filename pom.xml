@@ -110,6 +110,15 @@
         <assertj.version>3.27.7</assertj.version>
         <jqwik.version>1.9.1</jqwik.version>
         <mockito.version>5.14.2</mockito.version>
+        <!-- Byte Buddy is managed explicitly rather than left to arrive transitively.
+             AssertJ and Mockito each depend on it, at different versions, so which one
+             wins is decided by declaration order in the consuming pom — and the loser's
+             byte-buddy-agent is not corrected to match, leaving a mismatched pair. The
+             version that lost this race was old enough to reject JDK 25 class files, so
+             every Mockito test in a downstream repo failed to initialise MockMaker.
+             Managing both artifacts keeps them in lockstep and makes the outcome
+             independent of the order consumers happen to list their test dependencies. -->
+        <byte-buddy.version>1.18.12</byte-buddy.version>
         <mockwebserver.version>4.12.0</mockwebserver.version>
         <munit.version>1.1.0</munit.version>
         <scalacheck.version>1.18.1</scalacheck.version>
@@ -490,6 +499,16 @@
                 <groupId>org.mockito</groupId>
                 <artifactId>mockito-core</artifactId>
                 <version>${mockito.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>net.bytebuddy</groupId>
+                <artifactId>byte-buddy</artifactId>
+                <version>${byte-buddy.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>net.bytebuddy</groupId>
+                <artifactId>byte-buddy-agent</artifactId>
+                <version>${byte-buddy.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.networknt</groupId>
